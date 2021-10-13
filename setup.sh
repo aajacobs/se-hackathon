@@ -1,6 +1,9 @@
 #!/bin/bash
 
 
+# Source demo-specific configurations
+source config/demo.cfg
+
 ##################################################
 # Create a new environment and specify it as the default
 ##################################################
