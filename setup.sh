@@ -135,6 +135,13 @@ echo "ksql is up moving on"
 ##################################################
 
 
+curl --request POST \
+  --url 'https://api.confluent.cloud/connect/v1/environments/$ENVIRONMENT/clusters/$CLUSTER/connectors' \
+  --header 'Authorization: Basic REPLACE_BASIC_AUTH' \
+  --header 'content-type: application/json' \
+  --data '{"name":"string","config":{"connector.class":"string","name":"string","kafka.api.key":"string","kafka.api.secret":"string","property1":"string","property2":"string"}}'
+
+
 ##################################################
 # Run ksql queries 
 ##################################################
