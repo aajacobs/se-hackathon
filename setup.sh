@@ -144,13 +144,15 @@ curl --request POST \
   "name": "SalesforceCdcSourceConnector_0",
   "kafka.api.key": $SFDC_API_KEY,
   "kafka.api.secret": $SFDC_API_SECRET,
-  "kafka.topic": "AccountChangeEvent",
+  "kafka.topic": "SFSourceCDC",
   "salesforce.username": $SFDC_USERNAME,
   "salesforce.password": $SFDC_PASSWORD,
   "salesforce.password.token": $SFDC_PASSWORD_TOKEN
   "salesforce.consumer.key": $SFDC_CONSUMER_KEY,
   "salesforce.consumer.secret": $SFDC_CONSUMER_SECRET,
   "salesforce.cdc.name": "AccountChangeEvent",
+  "salesforce.initial.start": "all",
+  "connection.timeout": "600000",
   "output.data.format": "JSON",
   "tasks.max": "1"
 }}'
