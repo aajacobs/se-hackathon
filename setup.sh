@@ -139,7 +139,21 @@ curl --request POST \
   --url 'https://api.confluent.cloud/connect/v1/environments/$ENVIRONMENT/clusters/$CLUSTER/connectors' \
   --header 'Authorization: Basic REPLACE_BASIC_AUTH' \
   --header 'content-type: application/json' \
-  --data '{"name":"string","config":{"connector.class":"string","name":"string","kafka.api.key":"string","kafka.api.secret":"string","property1":"string","property2":"string"}}'
+  --data '{"name":"string","config":{
+  "connector.class": "SalesforceCdcSource",
+  "name": "SalesforceCdcSourceConnector_0",
+  "kafka.api.key": $SFDC_API_KEY,
+  "kafka.api.secret": $SFDC_API_SECRET,
+  "kafka.topic": "AccountChangeEvent",
+  "salesforce.username": $SFDC_USERNAME,
+  "salesforce.password": $SFDC_PASSWORD,
+  "salesforce.password.token": $SFDC_PASSWORD_TOKEN
+  "salesforce.consumer.key": $SFDC_CONSUMER_KEY,
+  "salesforce.consumer.secret": $SFDC_CONSUMER_SECRET,
+  "salesforce.cdc.name": "AccountChangeEvent",
+  "output.data.format": "JSON",
+  "tasks.max": "1"
+}}'
 
 
 ##################################################
