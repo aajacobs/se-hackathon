@@ -135,6 +135,8 @@ echo "ksql is up moving on"
 ##################################################
 
 
+# Create SFDC Connector
+
 curl --request POST \
   --url 'https://api.confluent.cloud/connect/v1/environments/$ENVIRONMENT/clusters/$CLUSTER/connectors' \
   --header 'Authorization: Basic REPLACE_BASIC_AUTH' \
@@ -154,6 +156,27 @@ curl --request POST \
   "salesforce.initial.start": "all",
   "connection.timeout": "600000",
   "output.data.format": "JSON",
+  "tasks.max": "1"
+}}'
+
+# Create Snowflake Connector 
+
+curl --request POST \
+  --url 'https://api.confluent.cloud/connect/v1/environments/$ENVIRONMENT/clusters/$CLUSTER/connectors' \
+  --header 'Authorization: Basic REPLACE_BASIC_AUTH' \
+  --header 'content-type: application/json' \
+  --data '{"name":"string","config":{
+  "connector.class": "SnowflakeSink",
+  "name": "SnowflakeSinkConnector_0",
+  "kafka.api.key": $SNOWFLAKE_API_KEY,
+  "kafka.api.secret": $SNOWFLAKE_API_SECRET,
+  "topics": $SNOWFLAKE_TOPIC_NAME,
+  "input.data.format": "JSON",
+  "snowflake.url.name": $SNOWFLAKE_URL,
+  "snowflake.user.name": $SNOWFLAKE_USERNAME,
+  "snowflake.private.key": $SNOWFLAKE_PRIVATEKEY,
+  "snowflake.database.name": $SNOWFLAKE_DB_NAME,
+  "snowflake.schema.name": $SNOWFLAKE_SCHEMA_NAME,
   "tasks.max": "1"
 }}'
 
