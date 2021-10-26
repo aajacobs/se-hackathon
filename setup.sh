@@ -75,11 +75,46 @@ sleep 100
 # Create necessary topics
 ##################################################
 
+SFDC_TOPIC="SFSourceCDC"
+
+echo -e "\n# Create a new Kafka topic for SFDC CDC Data $SFDC_TOPIC"
+echo "ccloud kafka topic create $SFDC_TOPIC"
+ccloud kafka topic create $SFDC_TOPIC
+status=$?
+if [[ $status != 0 ]]; then
+  echo "ERROR: Failed to create topic $SFDC_TOPIC. Please troubleshoot and run again"
+  exit 1
+fi
 
 
 ##################################################
 # Create service accounts
 ##################################################
+
+echo -e "\n# Create a new service account for SFDC connector "
+RANDOM_NUM=$((1 + RANDOM % 1000000))
+SFDC_SERVICE_NAME="sfdc-source-$RANDOM_NUM"
+echo "ccloud service-account create $SFDC_SERVICE_NAME --description $SFDC_SERVICE_NAME -o json"
+OUTPUT=$(ccloud service-account create $SFDC_SERVICE_NAME --description $SFDC_SERVICE_NAME  -o json)
+echo "$OUTPUT" | jq .
+SFDC_SERVICE_ACCOUNT_ID=$(echo "$OUTPUT" | jq -r ".id")
+
+echo -e "\n# Create an API key and secret for the service account $SFDC_SERVICE_ACCOUNT_ID"
+echo "ccloud api-key create --service-account $SFDC_SERVICE_ACCOUNT_ID --resource $CLUSTER -o json"
+OUTPUT=$(ccloud api-key create --service-account $SFDC_SERVICE_ACCOUNT_ID --resource $CLUSTER -o json)
+echo "$OUTPUT" | jq .
+API_KEY_SFDC_SA=$(echo "$OUTPUT" | jq -r ".key")
+API_SECRET_SFDC_SA=$(echo "$OUTPUT" | jq -r ".secret")
+
+echo -e "\n# Create ACLs for the service account"
+echo "ccloud kafka acl create --allow --service-account $SFDC_SERVICE_ACCOUNT_ID --operation CREATE --topic $SFDC_TOPIC"
+echo "ccloud kafka acl create --allow --service-account $SFDC_SERVICE_ACCOUNT_ID --operation WRITE --topic $SFDC_TOPIC"
+ccloud kafka acl create --allow --service-account $SFDC_SERVICE_ACCOUNT_ID --operation CREATE --topic $SFDC_TOPIC
+ccloud kafka acl create --allow --service-account $SFDC_SERVICE_ACCOUNT_ID --operation WRITE --topic $SFDC_TOPIC
+echo
+echo "ccloud kafka acl list --service-account $SFDC_SERVICE_ACCOUNT_ID"
+ccloud kafka acl list --service-account $SFDC_SERVICE_ACCOUNT_ID
+sleep 2
 
 
 
@@ -134,19 +169,60 @@ echo "ksql is up moving on"
 # Create connectors 
 ##################################################
 
+# Create API Key for CC API 
+
+echo -e "\n# Create a new API key for management API"
+
+OUTPUT_API_CREATE_KEY=$(ccloud api-key create --resource cloud)
+status=$?
+if [[ $status != 0 ]]; then
+  echo "ERROR: Failed to create an API key.  Please troubleshoot and run again"
+  exit 1
+fi
+echo "$OUTPUT_API_CREATE_KEY" | jq .
+
+API_KEY_API=$(echo "$OUTPUT_API_CREATE_KEY" | jq -r ".key")
+API_SECRET_API=$(echo "$OUTPUT_API_CREATE_KEY" | jq -r ".secret")
+
+BASE_64_API=$(echo -n "API_KEY_API:API_SECRET_API" | base64)
+
+
+# Create MongoDB Connector 
+
+curl --request POST \
+  --url 'https://api.confluent.cloud/connect/v1/environments/$ENVIRONMENT/clusters/$CLUSTER/connectors' \
+  --header 'Authorization: Basic $BASE_64_API' \
+  --header 'content-type: application/json' \
+  --data '{"name": "MongoDbAtlasSinkConnector_0",
+  "config": {
+    "connector.class": "MongoDbAtlasSink",
+    "name": "MongoDbAtlasSinkConnector_0",
+    "input.data.format": "JSON",
+    "kafka.api.key": $API_KEY_MONGO_SA,
+    "kafka.api.secret": $API_SECRET_MONGO_SA,
+    "kafka.topic": "ORDER_PREP",
+    "topics": "ORDER_PREP",
+    "connection.host": $MONGO_CONNECTION_HOST,
+    "connection.user": $MONGO_CONNECTION_USER,
+    "connection.password": $MONGO_CONNECTION_PASSWORD,
+    "database": $MONGO_CONNECTION_DATABASE,
+    "collection": $MONGO_CONNECTION_COLLECTION,
+    "tasks.max": "1"
+  }
+}'
 
 # Create SFDC Connector
 
 curl --request POST \
   --url 'https://api.confluent.cloud/connect/v1/environments/$ENVIRONMENT/clusters/$CLUSTER/connectors' \
-  --header 'Authorization: Basic REPLACE_BASIC_AUTH' \
+  --header 'Authorization: Basic $BASE_64_API' \
   --header 'content-type: application/json' \
-  --data '{"name":"string","config":{
+  --data '{"name":"SalesforceCdcSourceConnector_0","config":{
   "connector.class": "SalesforceCdcSource",
   "name": "SalesforceCdcSourceConnector_0",
-  "kafka.api.key": $SFDC_API_KEY,
-  "kafka.api.secret": $SFDC_API_SECRET,
-  "kafka.topic": "SFSourceCDC",
+  "kafka.api.key": $API_KEY_SFDC_SA,
+  "kafka.api.secret": $API_SECRET_SFDC_SA,
+  "kafka.topic": "$SFDC_TOPIC",
   "salesforce.username": $SFDC_USERNAME,
   "salesforce.password": $SFDC_PASSWORD,
   "salesforce.password.token": $SFDC_PASSWORD_TOKEN
@@ -163,9 +239,9 @@ curl --request POST \
 
 curl --request POST \
   --url 'https://api.confluent.cloud/connect/v1/environments/$ENVIRONMENT/clusters/$CLUSTER/connectors' \
-  --header 'Authorization: Basic REPLACE_BASIC_AUTH' \
+  --header 'Authorization: Basic $BASE_64_API' \
   --header 'content-type: application/json' \
-  --data '{"name":"string","config":{
+  --data '{"name":"SnowflakeSinkConnector_0","config":{
   "connector.class": "SnowflakeSink",
   "name": "SnowflakeSinkConnector_0",
   "kafka.api.key": $SNOWFLAKE_API_KEY,
