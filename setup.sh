@@ -116,7 +116,60 @@ echo "ccloud kafka acl list --service-account $SFDC_SERVICE_ACCOUNT_ID"
 ccloud kafka acl list --service-account $SFDC_SERVICE_ACCOUNT_ID
 sleep 2
 
+TRANSFORM_TOPIC='ORDER_PREP'
 
+
+
+echo -e "\n# Create a new service account for MongoDB connector "
+RANDOM_NUM=$((1 + RANDOM % 1000000))
+MONGO_SERVICE_NAME="mongo-source-$RANDOM_NUM"
+echo "ccloud service-account create $MONGO_SERVICE_NAME --description $MONGO_SERVICE_NAME -o json"
+OUTPUT=$(ccloud service-account create $MONGO_SERVICE_NAME --description $MONGO_SERVICE_NAME  -o json)
+echo "$OUTPUT" | jq .
+MONGO_SERVICE_ACCOUNT_ID=$(echo "$OUTPUT" | jq -r ".id")
+
+echo -e "\n# Create an API key and secret for the service account $MONGO_SERVICE_ACCOUNT_ID"
+echo "ccloud api-key create --service-account $MONGO_SERVICE_ACCOUNT_ID --resource $CLUSTER -o json"
+OUTPUT=$(ccloud api-key create --service-account $MONGO_SERVICE_ACCOUNT_ID --resource $CLUSTER -o json)
+echo "$OUTPUT" | jq .
+API_KEY_MONGO_SA=$(echo "$OUTPUT" | jq -r ".key")
+API_SECRET_MONGO_SA=$(echo "$OUTPUT" | jq -r ".secret")
+
+echo -e "\n# Create ACLs for the service account"
+echo "ccloud kafka acl create --allow --service-account $MONGO_SERVICE_ACCOUNT_ID --operation CREATE --topic $TRANSFORM_TOPIC"
+echo "ccloud kafka acl create --allow --service-account $MONGO_SERVICE_ACCOUNT_ID --operation WRITE --topic $TRANSFORM_TOPIC"
+ccloud kafka acl create --allow --service-account $MONGO_SERVICE_ACCOUNT_ID --operation CREATE --topic $TRANSFORM_TOPIC
+ccloud kafka acl create --allow --service-account $MONGO_SERVICE_ACCOUNT_ID --operation WRITE --topic $TRANSFORM_TOPIC
+echo
+echo "ccloud kafka acl list --service-account $MONGO_SERVICE_ACCOUNT_ID"
+ccloud kafka acl list --service-account $MONGO_SERVICE_ACCOUNT_ID
+sleep 2
+
+
+echo -e "\n# Create a new service account for Snowflake connector "
+RANDOM_NUM=$((1 + RANDOM % 1000000))
+SNOWFLAKE_SERVICE_NAME="snowflake-source-$RANDOM_NUM"
+echo "ccloud service-account create $SNOWFLAKE_SERVICE_NAME --description $SNOWFLAKE_SERVICE_NAME -o json"
+OUTPUT=$(ccloud service-account create $SNOWFLAKE_SERVICE_NAME --description $SNOWFLAKE_SERVICE_NAME  -o json)
+echo "$OUTPUT" | jq .
+SNOWFLAKE_SERVICE_ACCOUNT_ID=$(echo "$OUTPUT" | jq -r ".id")
+
+echo -e "\n# Create an API key and secret for the service account $SNOWFLAKE_SERVICE_ACCOUNT_ID"
+echo "ccloud api-key create --service-account $SNOWFLAKE_SERVICE_ACCOUNT_ID --resource $CLUSTER -o json"
+OUTPUT=$(ccloud api-key create --service-account $SNOWFLAKE_SERVICE_ACCOUNT_ID --resource $CLUSTER -o json)
+echo "$OUTPUT" | jq .
+SNOWFLAKE_API_KEY=$(echo "$OUTPUT" | jq -r ".key")
+SNOWFLAKE_API_SECRET=$(echo "$OUTPUT" | jq -r ".secret")
+
+echo -e "\n# Create ACLs for the service account"
+echo "ccloud kafka acl create --allow --service-account $SNOWFLAKE_SERVICE_ACCOUNT_ID --operation CREATE --topic $TRANSFORM_TOPIC"
+echo "ccloud kafka acl create --allow --service-account $SNOWFLAKE_SERVICE_ACCOUNT_ID --operation WRITE --topic $TRANSFORM_TOPIC"
+ccloud kafka acl create --allow --service-account $SNOWFLAKE_SERVICE_ACCOUNT_ID --operation CREATE --topic $TRANSFORM_TOPIC
+ccloud kafka acl create --allow --service-account $SNOWFLAKE_SERVICE_ACCOUNT_ID --operation WRITE --topic $TRANSFORM_TOPIC
+echo
+echo "ccloud kafka acl list --service-account $SNOWFLAKE_SERVICE_ACCOUNT_ID"
+ccloud kafka acl list --service-account $SNOWFLAKE_SERVICE_ACCOUNT_ID
+sleep 2
 
 ##################################################
 # Create ksqlDB Application
