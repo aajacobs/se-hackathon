@@ -385,6 +385,4 @@ curl -X "POST" $URL \
   "streamsProperties": {}
 }'
 
-
-
-
+source ./start-oracle19c-kafkaConnect.sh
