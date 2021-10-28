@@ -314,3 +314,77 @@ curl --request POST \
 # Run ksql queries 
 ##################################################
 
+echo "pull endpoint"
+
+ENDPOINT=$(ccloud ksql app list -o json | jq '.[].endpoint')
+
+echo "endpoint for ksqlDB cluster is $ENDPOINT"
+
+echo "pull ksql cluster id"
+
+OUTPUT_KSQL_CLUSTER_ID=$(ccloud ksql app list -o json | jq '.[].id')
+KSQL_CLUSTER_ID=$(echo $OUTPUT_KSQL_CLUSTER_ID | tr -d '"')
+
+echo "cluster id for ksqlDB cluster is $KSQL_CLUSTER_ID"
+
+echo -e "\n# Create a new API key for ksql cluster "
+echo "ccloud api-key create --description \"Demo credentials\" --resource \"ksql_cluster_id\" -o json"
+OUTPUT_KSQL_KEY=$(ccloud api-key create --description "Demo credentials" --resource $KSQL_CLUSTER_ID -o json)
+status=$?
+if [[ $status != 0 ]]; then
+  echo "ERROR: Failed to create an API key.  Please troubleshoot and run again"
+  exit 1
+fi
+echo "$OUTPUT_KSQL_KEY" | jq .
+
+API_KEY_KSQL=$(echo "$OUTPUT_KSQL_KEY" | jq -r ".key")
+API_SECRET_KSQL=$(echo "$OUTPUT_KSQL_KEY" | jq -r ".secret")
+
+URL=$(echo $ENDPOINT | tr -d '"')
+URL+="/ksql"
+
+echo "sleeping to allow api-key to be created"
+
+sleep 200
+
+echo "KSQL SF" 
+
+curl -X "POST" $URL \
+     -H "Accept: application/vnd.ksql.v1+json" \
+     -u ${API_KEY_KSQL}:${API_SECRET_KSQL} \
+     -d $'{
+  "ksql": "CREATE STREAM SfAcctStream (REPLAYID bigint key, ID string, NAME string, OWNERSHIP string, TICKERSYMBOL string, INDUSTRY string, ACCOUNTNUMBER string, TYPE string, WEBSITE string ) WITH ( KAFKA_TOPIC = \'SFSourceCDC\', VALUE_FORMAT = \'JSON\');",
+  "streamsProperties": {}
+}'
+
+echo "KSQL ORACLE ORDER" 
+
+curl -X "POST" $URL \
+     -H "Accept: application/vnd.ksql.v1+json" \
+     -u ${API_KEY_KSQL}:${API_SECRET_KSQL} \
+     -d $'{
+  "ksql": "CREATE STREAM OrclOrderStream (PAYLOAD STRUCT<ORDER_ID bigint, CUSTOMER_ID string, ORDER_TOTAL_USD double, MAKE string, MODEL string, DELIVERY_COMPANY string, DELIVERY_ADDRESS string, DELIVERY_CITY string, DELIVERY_STATE string, DELIVERY_ZIP string, CREATE_TS timestamp, UPDATE_TS timestamp>  ) WITH ( KAFKA_TOPIC = \'ORCLCDB.C__MYUSER.ORDERS\', VALUE_FORMAT = \'JSON\' );",
+  "streamsProperties": {}
+}'
+
+curl -X "POST" $URL \
+     -H "Accept: application/vnd.ksql.v1+json" \
+     -u ${API_KEY_KSQL}:${API_SECRET_KSQL} \
+     -d $'{
+  "ksql": "CREATE STREAM OrclOrderStream_flat as  select PAYLOAD->ORDER_ID as ORDER_ID, PAYLOAD->CUSTOMER_ID as CUSTOMER_ID, PAYLOAD->ORDER_TOTAL_USD as ORDER_TOTAL_USD, PAYLOAD->MAKE as MAKE, PAYLOAD->MODEL as MODEL, PAYLOAD->DELIVERY_COMPANY as DELIVERY_COMPANY, PAYLOAD->DELIVERY_ADDRESS as DELIVERY_ADDRESS, PAYLOAD->DELIVERY_CITY as DELIVERY_CITY, PAYLOAD->DELIVERY_STATE as DELIVERY_STATE, PAYLOAD->DELIVERY_ZIP as DELIVERY_ZIP, PAYLOAD->CREATE_TS as CREATE_TS, PAYLOAD->UPDATE_TS as UPDATE_TS from OrclOrderStream;", 
+  "streamsProperties": {}
+}'
+
+echo "KSQL ORACLE PREP" 
+
+curl -X "POST" $URL \
+     -H "Accept: application/vnd.ksql.v1+json" \
+     -u ${API_KEY_KSQL}:${API_SECRET_KSQL} \
+     -d $'{
+  "ksql": "CREATE STREAM AccountOrderStream with (PARTITIONS = 1,  KAFKA_TOPIC = \'ORDER_PREP\', VALUE_FORMAT = \'JSON\') AS SELECT a.*, o.* FROM SfAcctStream a  JOIN OrclOrderStream_flat o WITHIN 90 DAYS  ON o.CUSTOMER_ID = a.ACCOUNTNUMBER EMIT CHANGES;",
+  "streamsProperties": {}
+}'
+
+
+
+
