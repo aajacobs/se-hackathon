@@ -242,9 +242,15 @@ BASE_64_API=$(echo -n "API_KEY_API:API_SECRET_API" | base64)
 
 # Create MongoDB Connector 
 
+echo "endpoint for ksqlDB cluster is $ENDPOINT"
+
+URL=$(echo "https://api.confluent.cloud/connect/v1/environments/$ENVIRONMENT/clusters/$CLUSTER/connectors")
+HEADER=$(echo "Authorization: Basic $BASE_64_API")
+
+
 curl --request POST \
-  --url 'https://api.confluent.cloud/connect/v1/environments/$ENVIRONMENT/clusters/$CLUSTER/connectors' \
-  --header 'Authorization: Basic $BASE_64_API' \
+  --url $URL \
+  --header $HEADER \
   --header 'content-type: application/json' \
   --data '{"name": "MongoDbAtlasSinkConnector_0",
   "config": {
@@ -267,8 +273,8 @@ curl --request POST \
 # Create SFDC Connector
 
 curl --request POST \
-  --url 'https://api.confluent.cloud/connect/v1/environments/$ENVIRONMENT/clusters/$CLUSTER/connectors' \
-  --header 'Authorization: Basic $BASE_64_API' \
+  --url $URL \
+  --header $HEADER \
   --header 'content-type: application/json' \
   --data '{"name":"SalesforceCdcSourceConnector_0","config":{
   "connector.class": "SalesforceCdcSource",
@@ -291,8 +297,8 @@ curl --request POST \
 # Create Snowflake Connector 
 
 curl --request POST \
-  --url 'https://api.confluent.cloud/connect/v1/environments/$ENVIRONMENT/clusters/$CLUSTER/connectors' \
-  --header 'Authorization: Basic $BASE_64_API' \
+  --url $URL \
+  --header $HEADER \
   --header 'content-type: application/json' \
   --data '{"name":"SnowflakeSinkConnector_0","config":{
   "connector.class": "SnowflakeSink",
